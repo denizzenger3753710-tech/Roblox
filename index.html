@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mini Roblox Clone</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        #gui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; }
+    </style>
+</head>
+<body>
+    <div id="gui">WASD ile Hareket Et</div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // 1. Sahne ve Kamera Ayarları
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb); // Gökyüzü mavisi
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // 2. Işıklandırma
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 10, 7.5).normalize();
+        scene.add(light);
+
+        // 3. Zemin (Roblox Baseplate gibi)
+        const geometry = new THREE.PlaneGeometry(100, 100);
+        const material = new THREE.MeshPhongMaterial({ color: 0x33aa33 });
+        const floor = new THREE.Mesh(geometry, material);
+        floor.rotation.x = -Math.PI / 2;
+        scene.add(floor);
+
+        // 4. Oyuncu (Basit bir Küp)
+        const playerGeo = new THREE.BoxGeometry(1, 2, 1);
+        const playerMat = new THREE.MeshPhongMaterial({ color: 0xffcc00 });
+        const player = new THREE.Mesh(playerGeo, playerMat);
+        player.position.y = 1;
+        scene.add(player);
+
+        camera.position.z = 10;
+        camera.position.y = 5;
+        camera.lookAt(player.position);
+
+        // 5. Hareket Kontrolleri
+        const keys = {};
+        window.addEventListener('keydown', (e) => keys[e.code] = true);
+        window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (keys['KeyW']) player.position.z -= 0.1;
+            if (keys['KeyS']) player.position.z += 0.1;
+            if (keys['KeyA']) player.position.x -= 0.1;
+            if (keys['KeyD']) player.position.x += 0.1;
+
+            // Kamera oyuncuyu takip etsin
+            camera.position.x = player.position.x;
+            camera.position.z = player.position.z + 10;
+            
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
