@@ -1,66 +1,99 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Mini Roblox Clone</title>
+    <title>Roblox Style - Mouse Look</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; }
-        #gui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        #gui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; pointer-events: none; }
     </style>
 </head>
 <body>
-    <div id="gui">WASD ile Hareket Et</div>
+    <div id="gui">
+        <b>Kontroller:</b><br>
+        Tıkla: Fareyi Kilitle (Bakış için)<br>
+        WASD: Hareket Et<br>
+        ESC: Fareyi Serbest Bırak
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // 1. Sahne ve Kamera Ayarları
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb); // Gökyüzü mavisi
+        scene.background = new THREE.Color(0x87ceeb);
+        
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // 2. Işıklandırma
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(5, 10, 7.5).normalize();
+        // Işıklar
+        const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
         scene.add(light);
 
-        // 3. Zemin (Roblox Baseplate gibi)
-        const geometry = new THREE.PlaneGeometry(100, 100);
-        const material = new THREE.MeshPhongMaterial({ color: 0x33aa33 });
-        const floor = new THREE.Mesh(geometry, material);
+        // Zemin (Grid ekledik ki hareket ettiğini anla)
+        const grid = new THREE.GridHelper(100, 50, 0x000000, 0x888888);
+        scene.add(grid);
+        const floorGeo = new THREE.PlaneGeometry(100, 100);
+        const floorMat = new THREE.MeshPhongMaterial({ color: 0x55aa55 });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
         floor.rotation.x = -Math.PI / 2;
         scene.add(floor);
 
-        // 4. Oyuncu (Basit bir Küp)
-        const playerGeo = new THREE.BoxGeometry(1, 2, 1);
-        const playerMat = new THREE.MeshPhongMaterial({ color: 0xffcc00 });
-        const player = new THREE.Mesh(playerGeo, playerMat);
-        player.position.y = 1;
-        scene.add(player);
+        // Oyuncu Grubu (Kamera ve Gövde beraber hareket edecek)
+        const playerGroup = new THREE.Group();
+        scene.add(playerGroup);
 
-        camera.position.z = 10;
-        camera.position.y = 5;
-        camera.lookAt(player.position);
+        const bodyGeo = new THREE.BoxGeometry(1, 2, 1);
+        const bodyMat = new THREE.MeshPhongMaterial({ color: 0xffcc00 });
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = 1;
+        playerGroup.add(body);
 
-        // 5. Hareket Kontrolleri
+        // Kamera ayarı (Karakterin biraz arkasında ve üstünde)
+        camera.position.set(0, 5, 10);
+        playerGroup.add(camera);
+
+        // Fare Kilitleme Kontrolü
+        document.body.addEventListener('click', () => {
+            document.body.requestPointerLock();
+        });
+
+        let yaw = 0; // Yatay bakış
+        let pitch = 0; // Dikey bakış
+
+        document.addEventListener('mousemove', (e) => {
+            if (document.pointerLockElement === document.body) {
+                yaw -= e.movementX * 0.002;
+                pitch -= e.movementY * 0.002;
+                pitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, pitch)); // Bakış sınırları
+                
+                playerGroup.rotation.y = yaw;
+                camera.rotation.x = pitch;
+            }
+        });
+
+        // Hareket
         const keys = {};
         window.addEventListener('keydown', (e) => keys[e.code] = true);
         window.addEventListener('keyup', (e) => keys[e.code] = false);
 
         function animate() {
             requestAnimationFrame(animate);
-            if (keys['KeyW']) player.position.z -= 0.1;
-            if (keys['KeyS']) player.position.z += 0.1;
-            if (keys['KeyA']) player.position.x -= 0.1;
-            if (keys['KeyD']) player.position.x += 0.1;
-
-            // Kamera oyuncuyu takip etsin
-            camera.position.x = player.position.x;
-            camera.position.z = player.position.z + 10;
             
+            const speed = 0.15;
+            if (keys['KeyW']) playerGroup.translateZ(-speed);
+            if (keys['KeyS']) playerGroup.translateZ(speed);
+            if (keys['KeyA']) playerGroup.translateX(-speed);
+            if (keys['KeyD']) playerGroup.translateX(speed);
+
             renderer.render(scene, camera);
         }
         animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
