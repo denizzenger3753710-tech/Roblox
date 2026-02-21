@@ -1,21 +1,84 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Roblox Web Clone</title>
+    <title>Roblox Web Clone - The Ultimate Obby!</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #gui { position: absolute; top: 20px; left: 20px; color: white; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 10px; border: 2px solid #555; pointer-events: none; }
-        #crosshair { position: absolute; top: 50%; left: 50%; width: 10px; height: 10px; border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; cursor: none; }
+        #gui { 
+            position: absolute; top: 20px; left: 20px; color: white; background: rgba(0,0,0,0.7); 
+            padding: 15px; border-radius: 10px; border: 2px solid #555; pointer-events: none; 
+            font-size: 1.1em; line-height: 1.6;
+            transition: opacity 0.3s ease-in-out;
+        }
+        #gui.hidden { opacity: 0; }
+        #crosshair { 
+            position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; 
+            background: white; border-radius: 50%; transform: translate(-50%, -50%); 
+            z-index: 1000; pointer-events: none;
+        }
+        #phone-overlay {
+            position: absolute; bottom: 10px; right: 10px; 
+            width: 250px; height: 450px; background: black; border-radius: 30px; 
+            border: 8px solid #333; box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            display: none; /* Başlangıçta gizli */
+            z-index: 999;
+            overflow: hidden;
+            pointer-events: all;
+        }
+        #phone-screen {
+            width: 100%; height: calc(100% - 70px); background: #eee;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 0.9em;
+            color: #555;
+            text-align: center;
+        }
+        #phone-camera-view {
+            width: 100%; height: 100%;
+            background-color: #333; /* Placeholder for camera feed */
+            position: absolute;
+            top: 0; left: 0;
+            overflow: hidden;
+        }
+        #phone-camera-button {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            width: 60px; height: 60px; background: white; border-radius: 50%;
+            border: 5px solid #ccc; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 2em; color: #333;
+        }
+        #phone-camera-button:active { background: #eee; border-color: #bbb; }
+        #phone-top-bar, #phone-bottom-bar {
+            height: 35px; background: #333; color: white;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 15px; font-size: 0.8em;
+        }
+        #phone-top-bar { border-top-left-radius: 20px; border-top-right-radius: 20px; }
+        #phone-bottom-bar { border-bottom-left-radius: 20px; border-bottom-right-radius: 20px; }
     </style>
 </head>
 <body>
     <div id="gui">
-        <h2 style="margin:0 0 10px 0; color: #f44336;">ROBLOX JS</h2>
+        <h2 style="margin:0 0 10px 0; color: #f44336; text-shadow: 1px 1px 2px rgba(0,0,0,0.4);">ROBLOX JS</h2>
         <b>WASD:</b> Hareket<br>
+        <b>SHIFT:</b> Hızlı Koş<br>
         <b>SPACE:</b> Zıpla<br>
-        <b>MOUSE:</b> Bakış (Tıkla ve Kilitle)
+        <b>MOUSE:</b> Bakış (Ekrana Tıkla)<br>
+        <b>P:</b> Telefonu Aç/Kapat
     </div>
     <div id="crosshair"></div>
+
+    <div id="phone-overlay">
+        <div id="phone-top-bar"><span>9:41 AM</span><span>📶🔋</span></div>
+        <div id="phone-screen">
+            <canvas id="phone-camera-view"></canvas>
+            <div id="phone-camera-button">📸</div>
+        </div>
+        <div id="phone-bottom-bar"><span>🏡</span><span>💬</span><span>📷</span></div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
@@ -29,26 +92,39 @@
         renderer.shadowMap.enabled = true; // Gölgeler!
         document.body.appendChild(renderer.domElement);
 
+        // Telefon için ayrı bir renderer ve sahne (kamera görüntüsü için)
+        const phoneCamera = new THREE.PerspectiveCamera(60, 250 / (450 - 70), 0.1, 500);
+        const phoneRenderer = new THREE.WebGLRenderer({ antialias: true, canvas: document.getElementById('phone-camera-view') });
+        phoneRenderer.setSize(250, 450 - 70);
+        phoneRenderer.shadowMap.enabled = true;
+
         // --- IŞIKLANDIRMA (Güneş gibi) ---
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
         const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-        sun.position.set(50, 100, 50);
+        sun.position.set(50, 100, 50); // Güneşin konumu
         sun.castShadow = true;
+        // Gölge ayarları (daha iyi kalite için)
+        sun.shadow.mapSize.width = 2048;
+        sun.shadow.mapSize.height = 2048;
+        sun.shadow.camera.near = 0.5;
+        sun.shadow.camera.far = 200;
+        sun.shadow.camera.left = -100;
+        sun.shadow.camera.right = 100;
+        sun.shadow.camera.top = 100;
+        sun.shadow.camera.bottom = -100;
         scene.add(sun);
 
         // --- ROBLOX BASEPLATE (Meşhur Kareli Zemin) ---
-        const textureLoader = new THREE.TextureLoader();
-        // Basit bir kareli doku oluşturuyoruz
-        const floorGeo = new THREE.PlaneGeometry(200, 200);
-        const floorMat = new THREE.MeshPhongMaterial({ color: 0x3b3b3b }); // Klasik koyu gri baseplate
+        const floorGeo = new THREE.PlaneGeometry(300, 300); // Daha geniş harita
+        const floorMat = new THREE.MeshPhongMaterial({ color: 0x3b3b3b }); 
         const floor = new THREE.Mesh(floorGeo, floorMat);
         floor.rotation.x = -Math.PI / 2;
         floor.receiveShadow = true;
         scene.add(floor);
 
         // Izgara (Grid) - Tam Roblox havası verir
-        const grid = new THREE.GridHelper(200, 40, 0x555555, 0x444444);
+        const grid = new THREE.GridHelper(300, 60, 0x555555, 0x444444);
         scene.add(grid);
 
         // --- KARAKTER (R6 Tipi Roblox Karakteri) ---
@@ -65,13 +141,14 @@
         }
 
         const torso = createPart(1, 1.2, 0.5, 0x0055ff, 0, 1.6, 0); // Gövde (Mavi)
-        const head = createPart(0.6, 0.6, 0.6, 0xffcc00, 0, 2.6, 0); // Kafa (Sarı)
+        const head = createPart(0.8, 0.8, 0.8, 0xffcc00, 0, 2.6, 0); // Kafa (Sarı, daha büyük)
         const lArm = createPart(0.5, 1.2, 0.5, 0xffcc00, -0.8, 1.6, 0); // Sol Kol
         const rArm = createPart(0.5, 1.2, 0.5, 0xffcc00, 0.8, 1.6, 0); // Sağ Kol
         const lLeg = createPart(0.5, 1.2, 0.5, 0x333333, -0.25, 0.6, 0); // Sol Bacak
         const rLeg = createPart(0.5, 1.2, 0.5, 0x333333, 0.25, 0.6, 0); // Sağ Bacak
 
         playerGroup.add(torso, head, lArm, rArm, lLeg, rLeg);
+        playerGroup.position.y = 0; // Yere basıyor
 
         // Kamera Takibi
         const cameraOffset = new THREE.Vector3(0, 5, 10);
@@ -81,36 +158,142 @@
         let isJumping = false;
         const gravity = -0.015;
         const jumpForce = 0.4;
-        const speed = 0.2;
+        let currentSpeed = 0.2; // Normal hız
+        const runSpeed = 0.4; // Koşma hızı
         let yaw = 0, pitch = 0;
 
         // Kontroller
         const keys = {};
-        window.addEventListener('keydown', (e) => keys[e.code] = true);
+        window.addEventListener('keydown', (e) => {
+            keys[e.code] = true;
+            if (e.code === 'KeyP') togglePhone();
+        });
         window.addEventListener('keyup', (e) => keys[e.code] = false);
-        document.body.addEventListener('click', () => document.body.requestPointerLock());
+
+        let pointerLocked = false;
+        document.body.addEventListener('click', () => {
+            if (!isPhoneOpen) { // Telefon açık değilse fareyi kilitle
+                document.body.requestPointerLock();
+            }
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            pointerLocked = document.pointerLockElement === document.body;
+            document.getElementById('gui').classList.toggle('hidden', pointerLocked);
+            document.getElementById('crosshair').style.display = pointerLocked ? 'block' : 'none';
+        });
 
         document.addEventListener('mousemove', (e) => {
-            if (document.pointerLockElement === document.body) {
+            if (pointerLocked) {
                 yaw -= e.movementX * 0.003;
                 pitch -= e.movementY * 0.003;
-                pitch = Math.max(-0.8, Math.min(0.5, pitch));
+                pitch = Math.max(-0.8, Math.min(0.5, pitch)); // Bakış açılarını sınırla
                 playerGroup.rotation.y = yaw;
             }
+        });
+
+        // --- PARKUR BLOKLARI (OBSTACLES) ---
+        const obstacles = [];
+        const spawnPoint = new THREE.Vector3(0, 0, 0); // Başlangıç noktası
+
+        function createObstacle(w, h, d, color, x, y, z, isKillPart = false) {
+            const geo = new THREE.BoxGeometry(w, h, d);
+            const mat = new THREE.MeshPhongMaterial({ 
+                color: color, 
+                emissive: isKillPart ? 0xff0000 : 0x000000, 
+                emissiveIntensity: isKillPart ? 0.7 : 0 
+            });
+            const block = new THREE.Mesh(geo, mat);
+            block.position.set(x, y, z);
+            block.castShadow = true;
+            block.receiveShadow = true;
+            block.userData = { isKillPart: isKillPart, collider: new THREE.Box3().setFromObject(block) }; // Çarpışma kutusu
+            scene.add(block);
+            obstacles.push(block);
+            return block; // Blok referansını döndür
+        }
+
+        // Basit bir parkur taslağı oluşturalım
+        createObstacle(4, 1, 4, 0x00ff00, 0, 0.5, -10);
+        createObstacle(3, 1, 3, 0x0000ff, 5, 2.5, -15);
+        createObstacle(4, 1, 4, 0xffff00, 0, 4.5, -20);
+        createObstacle(6, 0.5, 6, 0xff0000, -8, 0.25, -25, true); // LAV!
+        createObstacle(3, 1, 3, 0xffa500, 10, 6.5, -30);
+        createObstacle(2, 1, 2, 0x800080, 15, 8.5, -35);
+        createObstacle(8, 0.5, 8, 0xff0000, 0, 0.25, -45, true); // Büyük lav alanı
+        createObstacle(4, 1, 4, 0x00ffff, -10, 2.5, -50);
+        createObstacle(5, 1, 5, 0xff00ff, -15, 4.5, -55);
+
+        // Ekstra, daha zorlayıcı rastgele bloklar
+        for (let i = 0; i < 50; i++) {
+            const size = Math.random() * 3 + 1;
+            const height = Math.random() * 10 + 0.5;
+            const color = Math.random() * 0xffffff;
+            const x = Math.random() * 200 - 100;
+            const z = Math.random() * -150 - 20; // Başlangıçtan daha uzak
+            const isLava = Math.random() < 0.05; // %5 lav olma ihtimali
+            createObstacle(size, size, size, color, x, height / 2, z, isLava);
+        }
+
+        // --- NPC ARKADAŞLAR (Basit Duruşlu Karakterler) ---
+        function createNPC(x, y, z, headColor, torsoColor, armLegColor) {
+            const npcGroup = new THREE.Group();
+            npcGroup.position.set(x, y, z);
+
+            const npcTorso = createPart(1, 1.2, 0.5, torsoColor, 0, 1.6, 0);
+            const npcHead = createPart(0.8, 0.8, 0.8, headColor, 0, 2.6, 0);
+            const npcLArm = createPart(0.5, 1.2, 0.5, armLegColor, -0.8, 1.6, 0);
+            const npcRArm = createPart(0.5, 1.2, 0.5, armLegColor, 0.8, 1.6, 0);
+            const npcLLeg = createPart(0.5, 1.2, 0.5, armLegColor, -0.25, 0.6, 0);
+            const npcRLeg = createPart(0.5, 1.2, 0.5, armLegColor, 0.25, 0.6, 0);
+
+            npcGroup.add(npcTorso, npcHead, npcLArm, npcRArm, npcLLeg, npcRLeg);
+            scene.add(npcGroup);
+            return npcGroup;
+        }
+
+        // Başlangıçta birkaç arkadaş
+        createNPC(5, 0, 5, 0xff00ff, 0x00ff00, 0xffffff); // Mor kafa, yeşil gövde
+        createNPC(-5, 0, 5, 0x00ffff, 0xff0000, 0x000000); // Turkuaz kafa, kırmızı gövde
+        createNPC(10, 0, 10, 0xffa500, 0x800080, 0x00ff00); // Turuncu kafa, mor gövde
+        createNPC(-10, 0, 10, 0x888888, 0x0000ff, 0xffd700); // Gri kafa, mavi gövde
+        
+        // --- TELEFON MODU ---
+        const phoneOverlay = document.getElementById('phone-overlay');
+        const phoneCameraButton = document.getElementById('phone-camera-button');
+        let isPhoneOpen = false;
+
+        function togglePhone() {
+            isPhoneOpen = !isPhoneOpen;
+            phoneOverlay.style.display = isPhoneOpen ? 'block' : 'none';
+            if (isPhoneOpen) {
+                document.exitPointerLock(); // Telefon açılınca fareyi serbest bırak
+            }
+        }
+
+        phoneCameraButton.addEventListener('click', () => {
+            // Telefonun içinde resim çekme simülasyonu
+            console.log("Fotoğraf çekildi!");
+            // Gerçek bir fotoğraf çekmek için canvas'ı kullanabiliriz, ancak bu sadece bir simülasyon
+            phoneCameraButton.innerHTML = '📸 Çekildi!';
+            setTimeout(() => {
+                phoneCameraButton.innerHTML = '📸';
+            }, 1000);
         });
 
         // --- OYUN DÖNGÜSÜ ---
         function animate() {
             requestAnimationFrame(animate);
 
-            // Yürüme
-            if (keys['KeyW']) playerGroup.translateZ(-speed);
-            if (keys['KeyS']) playerGroup.translateZ(speed);
-            if (keys['KeyA']) playerGroup.translateX(-speed);
-            if (keys['KeyD']) playerGroup.translateX(speed);
+            // Koşma ve Yürüme
+            currentSpeed = keys['ShiftLeft'] ? runSpeed : 0.2;
+            if (keys['KeyW']) playerGroup.translateZ(-currentSpeed);
+            if (keys['KeyS']) playerGroup.translateZ(currentSpeed);
+            if (keys['KeyA']) playerGroup.translateX(-currentSpeed);
+            if (keys['KeyD']) playerGroup.translateX(currentSpeed);
 
             // Zıplama ve Yerçekimi
-            if (keys['Space'] && !isJumping) {
+            if (keys['Space'] && !isJumping && playerGroup.position.y <= 0.01) { // Yerdeyken zıpla
                 velocityY = jumpForce;
                 isJumping = true;
             }
@@ -118,28 +301,70 @@
             playerGroup.position.y += velocityY;
             velocityY += gravity;
 
+            // Zemin çarpışması
             if (playerGroup.position.y <= 0) {
                 playerGroup.position.y = 0;
                 velocityY = 0;
                 isJumping = false;
             }
 
+            // Basit Çarpışma Kontrolü (Daha iyi bir fizik motoru olmadan tam doğru olmaz)
+            const playerHeight = 2; // Karakterin yüksekliği
+            const playerRadius = 0.5; // Karakterin yarıçapı (yaklaşık)
+
+            obstacles.forEach(block => {
+                const blockBox = block.userData.collider;
+                const playerBox = new THREE.Box3().setFromCenterAndSize(
+                    new THREE.Vector3(playerGroup.position.x, playerGroup.position.y + playerHeight / 2, playerGroup.position.z),
+                    new THREE.Vector3(playerRadius * 2, playerHeight, playerRadius * 2)
+                );
+
+                if (playerBox.intersectsBox(blockBox)) {
+                    if (block.userData.isKillPart) {
+                        playerGroup.position.copy(spawnPoint); // Başlangıca dön
+                        velocityY = 0;
+                        isJumping = false;
+                    } else {
+                        // Eğer blokun üstündeyse
+                        if (playerGroup.position.y >= block.position.y + block.geometry.parameters.height / 2 - 0.1) {
+                            playerGroup.position.y = block.position.y + block.geometry.parameters.height / 2;
+                            velocityY = 0;
+                            isJumping = false;
+                        }
+                    }
+                }
+            });
+
             // Kamera takibi (Karakterin arkasından bakış)
             const relativeCameraOffset = new THREE.Vector3(0, 4, 8);
-            const cameraOffset = relativeCameraOffset.applyMatrix4(playerGroup.matrixWorld);
-            camera.position.x = cameraOffset.x;
-            camera.position.y = cameraOffset.y;
-            camera.position.z = cameraOffset.z;
+            const cameraPosition = relativeCameraOffset.applyMatrix4(playerGroup.matrixWorld);
+            camera.position.x = cameraPosition.x;
+            camera.position.y = cameraPosition.y;
+            camera.position.z = cameraPosition.z;
             camera.lookAt(playerGroup.position.x, playerGroup.position.y + 2, playerGroup.position.z);
+            
+            // Telefon kamerası da oyuncuyu takip etsin
+            if (isPhoneOpen) {
+                phoneCamera.position.copy(playerGroup.position);
+                phoneCamera.position.y += 3; // Biraz yukarıdan baksın
+                phoneCamera.lookAt(playerGroup.position.x, playerGroup.position.y + 1, playerGroup.position.z - 10); // İleriye baksın
+                phoneRenderer.render(scene, phoneCamera);
+            }
 
             renderer.render(scene, camera);
         }
         animate();
 
+        // Pencere yeniden boyutlandığında
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+
+            // Telefon kamera boyutu da ayarlanmalı
+            phoneCamera.aspect = 250 / (450 - 70);
+            phoneCamera.updateProjectionMatrix();
+            phoneRenderer.setSize(250, 450 - 70);
         });
     </script>
 </body>
